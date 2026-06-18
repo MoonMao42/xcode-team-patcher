@@ -13,6 +13,7 @@ It runs on `post-checkout`, finds any hardcoded Team IDs in the Xcode project, r
 Go to your cloned repo and run:
 
 ```bash
+cd your repo
 curl -O https://raw.githubusercontent.com/MoonMao42/xcode-team-patcher/main/install.sh
 chmod +x install.sh
 ./install.sh
@@ -24,6 +25,7 @@ The script will automatically grab your Team ID from your macOS keychain and set
 
 If you ever want to remove it:
 ```bash
+cd your repo
 rm .git/hooks/post-checkout
 git update-index --no-assume-unchanged *.xcodeproj/project.pbxproj
 ```
