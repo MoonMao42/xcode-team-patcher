@@ -6,7 +6,7 @@ The issue happens because you're using Ad-Hoc signing (`-`). macOS sees a new ha
 
 This is a simple git hook that fixes the problem permanently. 
 
-It runs on `post-checkout`, finds any hardcoded Team IDs in the Xcode project, replaces them with yours, and then tells git to ignore the local changes so your PRs stay clean.
+It runs on `post-checkout` and `post-merge`, finds any hardcoded Team IDs in the Xcode project, replaces them with yours, and then tells git to ignore the local changes so your PRs stay clean.
 
 ## Usage
 
@@ -25,7 +25,6 @@ The script will automatically grab your Team ID from your macOS keychain and set
 
 If you ever want to remove it:
 ```bash
-cd your repo
-rm .git/hooks/post-checkout
-git update-index --no-assume-unchanged *.xcodeproj/project.pbxproj
+./install.sh --uninstall
+rm install.sh
 ```
