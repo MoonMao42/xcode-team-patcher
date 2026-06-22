@@ -5,6 +5,15 @@ die() { echo "fatal: $*" >&2; exit 1; }
 
 [ -d ".git" ] || die "not a git repository"
 
+if [ "$1" = "--uninstall" ]; then
+  rm -f .git/hooks/post-checkout .git/hooks/post-merge
+  find . -name "project.pbxproj" -o -name "*.xcconfig" | while read -r file; do
+    git update-index --no-assume-unchanged "$file" 2>/dev/null || true
+  done
+  echo "Done! xcode-team-patcher hooks removed and files restored."
+  exit 0
+fi
+
 team=$1
 if [ -z "$team" ]; then
   team=$(security find-identity -v -p codesigning | grep "Apple Development" | head -n 1 | grep -oE '\([A-Z0-9]{10}\)' | tr -d '()')
@@ -30,7 +39,8 @@ EOF
 
 sed -i '' "s/TEAM_ID/$team/" .git/hooks/post-checkout
 chmod +x .git/hooks/post-checkout
+cp .git/hooks/post-checkout .git/hooks/post-merge
 
 .git/hooks/post-checkout
 
-echo "ok"
+echo "Done! Team ID set to: $team"
