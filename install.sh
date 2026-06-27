@@ -55,14 +55,14 @@ if [ "$MODE" = "adhoc" ]; then
 #!/bin/sh
 # xcode-team-patcher: ad-hoc signing (no certificate needed)
 find . -name "project.pbxproj" -not -path "*/Pods/*" | while read -r proj; do
-  sed -i '' -E 's/DEVELOPMENT_TEAM = [A-Z0-9]{10};/DEVELOPMENT_TEAM = "";/g' "$proj"
-  sed -i '' -E 's/"DEVELOPMENT_TEAM\[sdk=macosx\*\]" = [A-Z0-9]{10};/"DEVELOPMENT_TEAM[sdk=macosx*]" = "";/g' "$proj"
+  sed -i '' -E 's/DEVELOPMENT_TEAM *= *[^;]*;/DEVELOPMENT_TEAM = "";/g' "$proj"
+  sed -i '' -E 's/"DEVELOPMENT_TEAM\[sdk=macosx\*\]" *= *[^;]*;/"DEVELOPMENT_TEAM[sdk=macosx*]" = "";/g' "$proj"
   git update-index --assume-unchanged "$proj" 2>/dev/null || true
 done
 find . -maxdepth 1 -name "*.xcconfig" | while read -r xcconfig; do
-  sed -i '' -E "s/DEVELOPMENT_TEAM = .*/DEVELOPMENT_TEAM =/" "$xcconfig"
-  sed -i '' -E "s/CODE_SIGN_IDENTITY = .*/CODE_SIGN_IDENTITY = -/" "$xcconfig"
-  sed -i '' -E "s/CODE_SIGN_STYLE = .*/CODE_SIGN_STYLE = Manual/" "$xcconfig"
+  sed -i '' -E "s/DEVELOPMENT_TEAM *= *.*/DEVELOPMENT_TEAM =/" "$xcconfig"
+  sed -i '' -E "s/CODE_SIGN_IDENTITY *= *.*/CODE_SIGN_IDENTITY = -/" "$xcconfig"
+  sed -i '' -E "s/CODE_SIGN_STYLE *= *.*/CODE_SIGN_STYLE = Manual/" "$xcconfig"
   git update-index --assume-unchanged "$xcconfig" 2>/dev/null || true
 done
 HOOK
@@ -72,14 +72,14 @@ else
 # xcode-team-patcher: team signing with ${team}
 team="${team}"
 find . -name "project.pbxproj" -not -path "*/Pods/*" | while read -r proj; do
-  sed -i '' -E "s/DEVELOPMENT_TEAM = [A-Z0-9]{10};/DEVELOPMENT_TEAM = \${team};/g" "\$proj"
-  sed -i '' -E "s/\"DEVELOPMENT_TEAM\[sdk=macosx\*\]\" = [A-Z0-9]{10};/\"DEVELOPMENT_TEAM[sdk=macosx*]\" = \${team};/g" "\$proj"
+  sed -i '' -E "s/DEVELOPMENT_TEAM *= *[^;]*;/DEVELOPMENT_TEAM = \${team};/g" "\$proj"
+  sed -i '' -E "s/\"DEVELOPMENT_TEAM\[sdk=macosx\*\]\" *= *[^;]*;/\"DEVELOPMENT_TEAM[sdk=macosx*]\" = \${team};/g" "\$proj"
   git update-index --assume-unchanged "\$proj" 2>/dev/null || true
 done
 find . -maxdepth 1 -name "*.xcconfig" | while read -r xcconfig; do
-  sed -i '' -E "s/DEVELOPMENT_TEAM = .*/DEVELOPMENT_TEAM = \${team}/" "\$xcconfig"
-  sed -i '' -E "s/CODE_SIGN_IDENTITY = .*/CODE_SIGN_IDENTITY = Apple Development/" "\$xcconfig"
-  sed -i '' -E "s/CODE_SIGN_STYLE = .*/CODE_SIGN_STYLE = Automatic/" "\$xcconfig"
+  sed -i '' -E "s/DEVELOPMENT_TEAM *= *.*/DEVELOPMENT_TEAM = \${team}/" "\$xcconfig"
+  sed -i '' -E "s/CODE_SIGN_IDENTITY *= *.*/CODE_SIGN_IDENTITY = Apple Development/" "\$xcconfig"
+  sed -i '' -E "s/CODE_SIGN_STYLE *= *.*/CODE_SIGN_STYLE = Automatic/" "\$xcconfig"
   git update-index --assume-unchanged "\$xcconfig" 2>/dev/null || true
 done
 HOOK
