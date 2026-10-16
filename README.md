@@ -10,21 +10,20 @@ It runs on `post-checkout` and `post-merge`, finds any hardcoded Team IDs in the
 
 ## Usage
 
-Go to your cloned repo and run:
+Go to your cloned repo (or git worktree) and run:
 
 ```bash
-curl -O https://raw.githubusercontent.com/MoonMao42/xcode-team-patcher/main/install.sh
-chmod +x install.sh && ./install.sh
+curl -fsSL https://raw.githubusercontent.com/MoonMao42/xcode-team-patcher/main/install.sh | sh
 ```
 
-The script will automatically grab your Team ID from your macOS keychain and set up the hook.
+The script will automatically grab your Team ID from your macOS keychain and set up the hook without leaving any untracked files in your repository.
 
 If you have **multiple Apple Development certificates**, the script will list them and let you choose which one to use.
 
 You can also pass a Team ID explicitly:
 
 ```bash
-./install.sh YOUR_TEAM_ID
+curl -fsSL https://raw.githubusercontent.com/MoonMao42/xcode-team-patcher/main/install.sh | sh -s -- YOUR_TEAM_ID
 ```
 
 ### Ad-hoc mode
@@ -32,7 +31,7 @@ You can also pass a Team ID explicitly:
 If you don't have an Apple Developer account, or you just want the project to compile without any signing setup:
 
 ```bash
-./install.sh --adhoc
+curl -fsSL https://raw.githubusercontent.com/MoonMao42/xcode-team-patcher/main/install.sh | sh -s -- --adhoc
 ```
 
 This clears all Team IDs and uses ad-hoc signing (`CODE_SIGN_IDENTITY = -`). No certificate, no account, no provisioning profile needed. The tradeoff is that macOS will reset TCC permissions on every rebuild.
@@ -54,6 +53,5 @@ All patched files are marked with `git update-index --assume-unchanged` so they 
 ## Uninstall
 
 ```bash
-./install.sh --uninstall
-rm install.sh
+curl -fsSL https://raw.githubusercontent.com/MoonMao42/xcode-team-patcher/main/install.sh | sh -s -- --uninstall
 ```

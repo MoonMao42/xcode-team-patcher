@@ -3,15 +3,33 @@ set -e
 
 die() { echo "fatal: $*" >&2; exit 1; }
 
-[ -d ".git" ] || die "not a git repository"
+usage() {
+  cat <<'EOF'
+Usage: install.sh [TEAM_ID | --adhoc | --uninstall | --help]
+
+Options:
+  TEAM_ID       10-character Apple Developer Team ID (auto-detected if omitted)
+  --adhoc       Use ad-hoc signing (CODE_SIGN_IDENTITY = -) without a certificate
+  --uninstall   Remove hooks and restore git tracking on patched files
+  -h, --help    Show this help message
+EOF
+}
+
+if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+  usage
+  exit 0
+fi
+
+git rev-parse --git-dir >/dev/null 2>&1 || die "not a git repository"
+HOOKS_DIR=$(git rev-parse --git-path hooks)
 
 # --- Uninstall ---
 if [ "$1" = "--uninstall" ]; then
-  rm -f .git/hooks/post-checkout .git/hooks/post-merge
-  find . -name "project.pbxproj" -not -path "*/Pods/*" | while read -r file; do
+  rm -f "$HOOKS_DIR/post-checkout" "$HOOKS_DIR/post-merge"
+  find . -name "project.pbxproj" -not -path "*/Pods/*" -not -path "*/.build/*" -not -path "*/DerivedData/*" | while read -r file; do
     git update-index --no-assume-unchanged "$file" 2>/dev/null || true
   done
-  find . -maxdepth 1 -name "*.xcconfig" | while read -r file; do
+  find . -maxdepth 3 -name "*.xcconfig" -not -path "*/.git/*" -not -path "*/Pods/*" -not -path "*/build/*" -not -path "*/DerivedData/*" -not -path "*/.build/*" | while read -r file; do
     git update-index --no-assume-unchanged "$file" 2>/dev/null || true
   done
   echo "Done! xcode-team-patcher hooks removed."
@@ -25,6 +43,9 @@ team=""
 if [ "$1" = "--adhoc" ]; then
   MODE="adhoc"
 elif [ -n "$1" ]; then
+  case "$1" in
+    -*) die "unknown option: $1 (run with --help for usage)" ;;
+  esac
   team="$1"
 else
   certs=$(security find-identity -v -p codesigning 2>/dev/null | grep "Apple Development" || true)
@@ -39,7 +60,11 @@ else
     echo "Multiple Apple Development certificates found:"
     printf '%s\n' "$certs" | cat -n
     printf "Select [1-%d] (default 1): " "$count"
-    read -r choice </dev/tty
+    if [ -r /dev/tty ]; then
+      read -r choice </dev/tty
+    else
+      choice=1
+    fi
     choice=${choice:-1}
     team=$(printf '%s\n' "$certs" | sed -n "${choice}p" | grep -oE '\([A-Z0-9]{10}\)' | tr -d '()')
   fi
@@ -47,19 +72,23 @@ else
   [ "$MODE" = "team" ] && [ -z "$team" ] && die "failed to detect team id"
 fi
 
-mkdir -p .git/hooks
+if [ "$MODE" = "team" ]; then
+  printf '%s\n' "$team" | grep -qE '^[A-Z0-9]{10}$' || die "invalid Team ID '$team' (expected 10 uppercase alphanumeric characters)"
+fi
+
+mkdir -p "$HOOKS_DIR"
 
 # --- Generate hook ---
 if [ "$MODE" = "adhoc" ]; then
-  cat > .git/hooks/post-checkout << 'HOOK'
+  cat > "$HOOKS_DIR/post-checkout" << 'HOOK'
 #!/bin/sh
 # xcode-team-patcher: ad-hoc signing (no certificate needed)
-find . -name "project.pbxproj" -not -path "*/Pods/*" | while read -r proj; do
+find . -name "project.pbxproj" -not -path "*/Pods/*" -not -path "*/.build/*" -not -path "*/DerivedData/*" | while read -r proj; do
   sed -i '' -E 's/DEVELOPMENT_TEAM *= *[^;]*;/DEVELOPMENT_TEAM = "";/g' "$proj"
   sed -i '' -E 's/"DEVELOPMENT_TEAM\[sdk=macosx\*\]" *= *[^;]*;/"DEVELOPMENT_TEAM[sdk=macosx*]" = "";/g' "$proj"
   git update-index --assume-unchanged "$proj" 2>/dev/null || true
 done
-find . -maxdepth 1 -name "*.xcconfig" | while read -r xcconfig; do
+find . -maxdepth 3 -name "*.xcconfig" -not -path "*/.git/*" -not -path "*/Pods/*" -not -path "*/build/*" -not -path "*/DerivedData/*" -not -path "*/.build/*" | while read -r xcconfig; do
   sed -i '' -E "s/DEVELOPMENT_TEAM *= *.*/DEVELOPMENT_TEAM =/" "$xcconfig"
   sed -i '' -E "s/CODE_SIGN_IDENTITY *= *.*/CODE_SIGN_IDENTITY = -/" "$xcconfig"
   sed -i '' -E "s/CODE_SIGN_STYLE *= *.*/CODE_SIGN_STYLE = Manual/" "$xcconfig"
@@ -67,16 +96,16 @@ find . -maxdepth 1 -name "*.xcconfig" | while read -r xcconfig; do
 done
 HOOK
 else
-  cat > .git/hooks/post-checkout << HOOK
+  cat > "$HOOKS_DIR/post-checkout" << HOOK
 #!/bin/sh
 # xcode-team-patcher: team signing with ${team}
 team="${team}"
-find . -name "project.pbxproj" -not -path "*/Pods/*" | while read -r proj; do
+find . -name "project.pbxproj" -not -path "*/Pods/*" -not -path "*/.build/*" -not -path "*/DerivedData/*" | while read -r proj; do
   sed -i '' -E "s/DEVELOPMENT_TEAM *= *[^;]*;/DEVELOPMENT_TEAM = \${team};/g" "\$proj"
   sed -i '' -E "s/\"DEVELOPMENT_TEAM\[sdk=macosx\*\]\" *= *[^;]*;/\"DEVELOPMENT_TEAM[sdk=macosx*]\" = \${team};/g" "\$proj"
   git update-index --assume-unchanged "\$proj" 2>/dev/null || true
 done
-find . -maxdepth 1 -name "*.xcconfig" | while read -r xcconfig; do
+find . -maxdepth 3 -name "*.xcconfig" -not -path "*/.git/*" -not -path "*/Pods/*" -not -path "*/build/*" -not -path "*/DerivedData/*" -not -path "*/.build/*" | while read -r xcconfig; do
   sed -i '' -E "s/DEVELOPMENT_TEAM *= *.*/DEVELOPMENT_TEAM = \${team}/" "\$xcconfig"
   sed -i '' -E "s/CODE_SIGN_IDENTITY *= *.*/CODE_SIGN_IDENTITY = Apple Development/" "\$xcconfig"
   sed -i '' -E "s/CODE_SIGN_STYLE *= *.*/CODE_SIGN_STYLE = Automatic/" "\$xcconfig"
@@ -85,11 +114,11 @@ done
 HOOK
 fi
 
-chmod +x .git/hooks/post-checkout
-cp .git/hooks/post-checkout .git/hooks/post-merge
+chmod +x "$HOOKS_DIR/post-checkout"
+cp "$HOOKS_DIR/post-checkout" "$HOOKS_DIR/post-merge"
 
 # --- Run immediately ---
-.git/hooks/post-checkout
+"$HOOKS_DIR/post-checkout"
 
 # --- Report ---
 if [ "$MODE" = "adhoc" ]; then
